@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>진동 테스트</title>
+<style>
+:root{color-scheme:light dark}
+body{margin:0;padding:32px 24px;font:17px/1.5 -apple-system,"Apple SD Gothic Neo",sans-serif}
+h1{font-size:24px;margin:0 0 8px}
+p{color:#6E7580;margin:0 0 28px;font-size:15px}
+.t{padding:20px 0;border-top:1px solid #8883}
+.t b{display:block;margin-bottom:14px}
+.big{transform:scale(2.2);transform-origin:left center;margin:18px 0}
+.over{position:relative;display:flex;align-items:center;justify-content:center;height:56px;border-radius:16px;background:#3478F6;color:#fff;font-weight:600}
+.over input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:.02}
+.half{position:relative;display:flex;align-items:center;justify-content:center;height:56px;border-radius:16px;background:#3478F6;color:#fff;font-weight:600}
+.half input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:.3}
+</style>
+</head>
+<body>
+<h1>진동 테스트</h1>
+<p>각 항목을 한 번씩 눌러 보고, 진동이 온 항목의 글자를 알려 주세요.</p>
+
+<div class="t"><b>A. 그냥 보이는 스위치</b><input type="checkbox" switch></div>
+<div class="t"><b>B. 크게 키운 스위치</b><input type="checkbox" switch class="big"></div>
+<div class="t"><b>C. 버튼 위에 거의 투명하게 덮은 스위치 (지금 앱 방식)</b><label class="over">눌러 보기<input type="checkbox" switch></label></div>
+<div class="t"><b>D. 버튼 위에 반투명하게 덮은 스위치</b><label class="half">눌러 보기<input type="checkbox" switch></label></div>
+</body>
+</html>
