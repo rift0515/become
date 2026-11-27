@@ -16,14 +16,16 @@
 VOICE: 조용하고 짧게. 한 화면에 하나의 행동.
 IDEA: 출석 도장 카드 — 한 칸이 실제로 간 하루.
 PICTURE: 오늘 화면의 큰 목표와 숫자, 기록 화면의 누적 칸.
-COLOUR and TYPE: 흰 바탕, 파랑 하나, 시스템 서체.
+COLOUR and TYPE: 흰 바탕, 아이콘에서 가져온 초록 하나, 시스템 서체.
 LAYOUT: 위에 정보, 엄지가 닿는 아래에 버튼.
 */
 :root{
   color-scheme:light dark;
-  --primary:light-dark(#3478F6,#4A8BFF);
-  --primary-press:light-dark(#2563D9,#3478F6);
-  --primary-soft:light-dark(#E9F1FE,#16243C);
+  --primary:light-dark(#1ED686,#2EE099);
+  --primary-press:light-dark(#14BF74,#22C98A);
+  --primary-soft:light-dark(#E6F9EF,#0F2A20);
+  --primary-ink:light-dark(#07784A,#5EE8AF);
+  --on-primary:light-dark(#05301E,#04261A);
   --text:light-dark(#1A1D23,#F2F4F6);
   --sub:light-dark(#6E7580,#9AA1AB);
   --faint:light-dark(#A3A9B2,#5F6670);
@@ -57,19 +59,19 @@ main{flex:1;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 8px) 24px 20
 .big{font-size:clamp(40px,12vw,52px);font-weight:700;letter-spacing:-1px;line-height:1.05;font-variant-numeric:tabular-nums}
 .big small{font-size:.5em;font-weight:600;margin-left:2px}
 .hint{font-size:14px;color:var(--sub);margin:8px 0 0}
-.mine{font-size:15px;color:var(--primary);font-weight:600;margin:10px 0 0}
+.mine{font-size:15px;color:var(--primary-ink);font-weight:600;margin:10px 0 0}
 .spacer{flex:1;min-height:24px}
 .state{text-align:center;padding:8px 0 24px}
-.state .mark{width:64px;height:64px;border-radius:50%;margin:0 auto 16px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary)}
+.state .mark{width:64px;height:64px;border-radius:50%;margin:0 auto 16px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary-ink)}
 .state .mark.rest{background:var(--surface);color:var(--sub)}
 .state h2{font-size:26px;font-weight:700;letter-spacing:-.4px;margin:0;line-height:1.3;text-wrap:balance}
 .state p{font-size:15px;color:var(--sub);margin:8px 0 0}
 .btns{display:grid;gap:10px}
 .btn{height:56px;border-radius:16px;font-size:17px;font-weight:600;width:100%;transition:transform .12s,background .12s}
 .btn:active{transform:scale(.98)}
-.btn.primary{background:var(--primary);color:#fff}
+.btn.primary{background:var(--primary);color:var(--on-primary)}
 .btn.primary:active{background:var(--primary-press)}
-.btn.secondary{background:var(--primary-soft);color:var(--primary)}
+.btn.secondary{background:var(--primary-soft);color:var(--primary-ink)}
 .btn.plain{background:var(--surface);color:var(--text)}
 .btn.text{height:44px;color:var(--sub);font-weight:500;font-size:15px}
 .btn.danger{background:var(--surface);color:#E5484D}
@@ -77,11 +79,16 @@ main{flex:1;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 8px) 24px 20
 .hapbtn{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;-webkit-user-select:none;user-select:none}
 .hapbtn:has(.hap:focus-visible){outline:3px solid var(--primary);outline-offset:2px}
 .hap{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:.02;cursor:pointer}
+.strip{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;max-width:300px;margin:4px auto 20px}
+.strip i{aspect-ratio:1;border-radius:6px;background:var(--empty)}
+.strip i.on{background:var(--primary)}
+.strip i.new{animation:cellin .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes cellin{0%{transform:scale(.2);opacity:0}100%{transform:scale(1);opacity:1}}
 .textrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}
 .mood-q{margin:22px 0 0!important;color:var(--text)!important;font-weight:600}
 .moods{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px}
 .mood{min-height:52px;border-radius:12px;background:var(--surface);color:var(--sub);font-size:13px;line-height:1.2;padding:4px 2px;word-break:keep-all}
-.mood[aria-pressed=true]{background:var(--primary);color:#fff;font-weight:600}
+.mood[aria-pressed=true]{background:var(--primary);color:var(--on-primary);font-weight:600}
 .mood:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
 .mood-note{font-size:13px!important;color:var(--faint)!important}
 .opt{text-align:left;padding:0 20px}
@@ -90,13 +97,13 @@ main{flex:1;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 8px) 24px 20
 .ba-item{flex:1;background:var(--bg);border-radius:12px;padding:10px 12px}
 .ba-label{display:block;font-size:12px;color:var(--faint)}
 .ba-val{display:block;font-size:15px;font-weight:600;color:var(--sub);margin-top:2px}
-.ba-val.on{color:var(--primary)}
+.ba-val.on{color:var(--primary-ink)}
 .ba-arrow{color:var(--faint);font-size:18px}
 .state .wrap-msg{margin:0;font-size:16px;font-weight:600;color:var(--text);line-height:1.45}
 .state .wrap-stat{margin:6px 0 0;font-size:14px;color:var(--sub)}
 .sheet .lead{font-size:15px;color:var(--sub);margin:-12px 0 0}
 .evidence{background:var(--primary-soft);border-radius:16px;padding:14px 16px;margin-top:20px}
-.evidence p{margin:0;color:var(--primary);font-weight:600;font-size:15px}
+.evidence p{margin:0;color:var(--primary-ink);font-weight:600;font-size:15px}
 .evidence p+p{margin-top:6px}
 .help-time{margin-top:20px}
 .help-main{margin-top:24px!important}
@@ -121,14 +128,14 @@ h1.title{font-size:26px;font-weight:700;letter-spacing:-.4px;margin:0}
 .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;text-align:center}
 .cal .wd{font-size:12px;color:var(--faint);padding-bottom:2px}
 .day{aspect-ratio:1;border-radius:10px;display:grid;place-items:center;font-size:14px;background:var(--empty);color:var(--sub);font-variant-numeric:tabular-nums}
-.day.attend{background:var(--primary);color:#fff;font-weight:600}
+.day.attend{background:var(--primary);color:var(--on-primary);font-weight:600}
 .day.rest{background:var(--rest);color:var(--text)}
 .day.today{box-shadow:inset 0 0 0 2px var(--text)}
 .day.blank{background:none}
 .legend{display:flex;gap:14px;margin-top:12px;font-size:13px;color:var(--sub);flex-wrap:wrap}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:5px}
 .note{margin-top:20px;font-size:14px;color:var(--sub);background:var(--surface);border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.note button{color:var(--primary);font-weight:600;font-size:14px;min-height:44px;white-space:nowrap}
+.note button{color:var(--primary-ink);font-weight:600;font-size:14px;min-height:44px;white-space:nowrap}
 
 /* 하단 탭 */
 nav{display:flex;border-top:1px solid var(--line);background:var(--bg);padding-bottom:env(safe-area-inset-bottom)}
@@ -156,7 +163,7 @@ textarea{width:100%;height:120px;border-radius:14px;border:0;background:var(--su
 .toast{position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 72px);max-width:448px;margin:0 auto;background:light-dark(#1A1D23,#2C2E33);color:#fff;border-radius:14px;padding:0 8px 0 16px;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:15px;opacity:0;transform:translateY(10px);pointer-events:none;transition:.2s;z-index:20}
 .toast.show{opacity:1;transform:none;pointer-events:auto}
 .toast{touch-action:none}
-.toast button{color:#8AB4FF;font-weight:600;min-height:44px;padding:0 10px;white-space:nowrap}
+.toast button{color:#7BE8B8;font-weight:600;min-height:44px;padding:0 10px;white-space:nowrap}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -518,12 +525,31 @@ function stateBlock(icon, iconCls, title, sub, animate) {
   const el = $('state');
   el.innerHTML = '';
   if (!icon) return;
-  const mark = document.createElement('div');
-  mark.className = 'mark ' + iconCls + (animate ? ' pop' : '');
-  mark.innerHTML = icon;
+  let mark;
+  if (typeof icon === 'string') {
+    mark = document.createElement('div');
+    mark.className = 'mark ' + iconCls + (animate ? ' pop' : '');
+    mark.innerHTML = icon;
+  } else {
+    mark = icon;
+  }
   const h = document.createElement('h2'); h.textContent = title;
   const p = document.createElement('p'); p.textContent = sub;
   el.append(mark, h, p);
+}
+// 기록 화면의 누적 칸 중 지금 줄(10칸)을 그대로 보여줌. 오늘 칸만 톡 하고 채워짐
+function cellStrip(n, animate) {
+  const strip = document.createElement('div');
+  strip.className = 'strip';
+  strip.setAttribute('role', 'img');
+  strip.setAttribute('aria-label', n + '번째 출석 칸이 채워졌어요');
+  const filled = ((n - 1) % 10) + 1;
+  for (let i = 0; i < 10; i++) {
+    const c = document.createElement('i');
+    if (i < filled) c.className = 'on' + (animate && i === filled - 1 ? ' new' : '');
+    strip.append(c);
+  }
+  return strip;
 }
 
 function renderToday(animate) {
@@ -557,14 +583,14 @@ function renderToday(animate) {
     stateBlock(ICON_MOON, 'rest', '오늘은 쉬어요.', '지금까지의 기록은 그대로예요.', animate);
     box.append(btn('plain', '그래도 가볼래요', () => actions.clearToday('쉬기를 취소했어요')));
   } else if (!r.finishedAt) {
-    stateBlock(ICON_CHECK, '', r.reluctant ? '가기 싫은 날에도 왔어요.' : '도착했어요.',
+    stateBlock(cellStrip(n, animate), '', r.reluctant ? '가기 싫은 날에도 왔어요.' : '도착했어요.',
       timeOf(r.arrivedAt) + ' 도착 · ' + n + '번째 출석', animate);
     box.append(
       hapBtn('primary', '운동 끝났어요', actions.finish),
       btn('text', '도착 취소', () => actions.clearToday('도착 기록을 지웠어요'))
     );
   } else {
-    stateBlock(ICON_CHECK, '', '오늘도 해냈어요.',
+    stateBlock(cellStrip(n, false), '', '오늘도 해냈어요.',
       timeOf(r.arrivedAt) + ' – ' + timeOf(r.finishedAt) + ' · 운동 ' + duration(r.arrivedAt, r.finishedAt), animate);
     // 기분 기록 (선택, 한 번 터치, 같은 걸 다시 누르면 지워짐)
     const q = document.createElement('p');
