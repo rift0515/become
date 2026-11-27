@@ -74,6 +74,9 @@ main{flex:1;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 8px) 24px 20
 .btn.text{height:44px;color:var(--sub);font-weight:500;font-size:15px}
 .btn.danger{background:var(--surface);color:#E5484D}
 .btn:focus-visible,.iconbtn:focus-visible,.tab:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.hapbtn{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;-webkit-user-select:none;user-select:none}
+.hapbtn:has(.hap:focus-visible){outline:3px solid var(--primary);outline-offset:2px}
+.hap{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:.02;cursor:pointer}
 .pop{animation:pop .35s ease-out}
 @keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
 
@@ -285,21 +288,13 @@ const attendCount = () => recs().filter(([, r]) => r.status === 'attend').length
 const reluctantCount = () => recs().filter(([, r]) => r.status === 'attend' && r.reluctant).length;
 const monthCount = (y, m) => recs().filter(([k, r]) => r.status === 'attend' && k.startsWith(y + '-' + pad(m + 1))).length;
 
-// 진동: 아이폰은 iOS 18 이상에서 스위치 토글 햅틱을 빌려 씀 (공식 기능 아님)
+// 진동
+// 안드로이드: 표준 진동 기능.
+// 아이폰: 웹에는 진동 기능이 없음. 예전에는 숨긴 스위치를 코드로 눌러 진동을 냈지만
+// iOS 26.5에서 막힘. 그래서 버튼 위에 거의 투명한 실제 스위치를 덮어,
+// 손가락이 스위치를 직접 누르게 함 (실험적 방법).
 function haptic() {
-  try {
-    if (navigator.vibrate && navigator.vibrate(12)) return;
-    const label = document.createElement('label');
-    label.ariaHidden = 'true';
-    label.style.display = 'none';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.setAttribute('switch', '');
-    label.appendChild(input);
-    document.body.appendChild(label);
-    label.click();
-    label.remove();
-  } catch (e) {}
+  try { navigator.vibrate && navigator.vibrate(12); } catch (e) {}
 }
 
 // 되돌리기
@@ -333,12 +328,10 @@ function change(mutate, msg) {
 
 const actions = {
   arrive: (reluctant) => {
-    haptic();
     change((k) => { state.records[k] = { status: 'attend', arrivedAt: Date.now(), reluctant: !!reluctant }; },
       attendCount() + 1 + '번째 출석이에요');
   },
   finish: () => {
-    haptic();
     change((k) => { state.records[k].finishedAt = Date.now(); }, '오늘 운동을 마쳤어요');
   },
   rest: () => change((k) => { state.records[k] = { status: 'rest', at: Date.now() }; }, '오늘은 쉬기로 했어요'),
@@ -355,6 +348,27 @@ function btn(cls, text, fn) {
   b.textContent = text;
   b.addEventListener('click', fn);
   return b;
+}
+// 진동이 필요한 버튼: 버튼 모양의 label 안에 실제 스위치를 깔아 둠
+function hapBtn(cls, text, fn) {
+  const l = document.createElement('label');
+  l.className = 'btn hapbtn ' + cls;
+  const span = document.createElement('span');
+  span.textContent = text;
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.setAttribute('switch', '');
+  input.className = 'hap';
+  input.setAttribute('aria-label', text);
+  let fired = false;
+  input.addEventListener('change', () => {
+    if (fired) return;
+    fired = true;
+    haptic();
+    fn();
+  });
+  l.append(span, input);
+  return l;
 }
 function stateBlock(icon, iconCls, title, sub, animate) {
   const el = $('state');
@@ -385,8 +399,8 @@ function renderToday(animate) {
   if (!r) {
     stateBlock(null);
     box.append(
-      btn('primary', '도착했어요', () => actions.arrive(false)),
-      btn('secondary', '가기 싫었는데 왔어요', () => actions.arrive(true)),
+      hapBtn('primary', '도착했어요', () => actions.arrive(false)),
+      hapBtn('secondary', '가기 싫었는데 왔어요', () => actions.arrive(true)),
       btn('text', '오늘은 쉬기', actions.rest)
     );
   } else if (r.status === 'rest') {
@@ -396,7 +410,7 @@ function renderToday(animate) {
     stateBlock(ICON_CHECK, '', r.reluctant ? '가기 싫은 날에도 왔어요.' : '도착했어요.',
       timeOf(r.arrivedAt) + ' 도착 · ' + n + '번째 출석', animate);
     box.append(
-      btn('primary', '운동 끝났어요', actions.finish),
+      hapBtn('primary', '운동 끝났어요', actions.finish),
       btn('text', '도착 취소', () => actions.clearToday('도착 기록을 지웠어요'))
     );
   } else {
