@@ -112,6 +112,18 @@ main{flex:1;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 8px) 24px 20
 @keyframes wxtwinkle{0%,100%{transform:scale(.3);opacity:0}50%{transform:scale(1);opacity:1}}
 @keyframes wxdrift{0%,100%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
 @keyframes wxrain{0%{transform:translateY(-4px);opacity:0}20%{opacity:1}100%{transform:translateY(20px);opacity:0}}
+/* 다시 시작하는 힘 */
+.cb-title{margin:0 0 12px;font-size:17px;font-weight:700;color:var(--text);text-wrap:balance}
+.cb-line{margin:0;font-size:15px;color:var(--text);line-height:1.5}
+.cb-line+.cb-line{margin-top:6px}
+.cb-line.accent{color:var(--primary-ink);font-weight:600}
+.cb-hint{margin:12px 0 0;font-size:13px;color:var(--sub);line-height:1.5}
+.cb-row{display:grid;grid-template-columns:4.6em minmax(0,1fr) auto;align-items:center;gap:10px;margin-top:10px;font-size:14px;color:var(--sub)}
+.cb-row b{color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cb-track{height:12px}
+.cb-bar{height:100%;border-radius:6px;background:var(--rest)}
+.cb-row.now .cb-bar{background:var(--primary)}
+.cb-row.now span{color:var(--text);font-weight:600}
 .textrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}
 .mood-q{margin:22px 0 0!important;color:var(--text)!important;font-weight:600}
 .moods{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px}
@@ -241,6 +253,11 @@ textarea{width:100%;height:120px;border-radius:14px;border:0;background:var(--su
       <h3>쌓인 칸</h3>
       <div class="cells" id="cells" role="img"></div>
       <p class="hint">기록은 줄어들지 않아요. 쉬어도 지금까지의 칸은 그대로예요.</p>
+    </div>
+
+    <div class="sec">
+      <h3>다시 시작하는 힘</h3>
+      <div class="card" id="comeback"></div>
     </div>
 
     <div class="sec">
@@ -392,9 +409,58 @@ function pastLines(reason) {
       .filter(([k, r]) => k < tk && r.status === 'attend' && r.mood)
       .sort(([a], [b]) => (a < b ? 1 : -1))[0];
     if (last && last[1].mood >= 4) out.push("지난번 다녀온 뒤 기분은 '" + MOODS[last[1].mood - 1] + "'이었어요.");
+    const cb = comebackStats();
+    if (cb.compare && cb.compare.better) {
+      out.push('다시 시작하는 데 걸리는 시간이 평균 ' + fmtDays(cb.compare.before) + '에서 ' + fmtDays(cb.compare.now) + '로 줄었어요.');
+    }
   }
   return out;
 }
+// ---- 다시 시작하는 힘 ----
+// 출석과 다음 출석 사이가 2일 이상 벌어졌다면 '쉬었다가 다시 시작한 것'으로 본다.
+// 예: 20일에 가고 24일에 갔다면 '4일 만에 다시 시작'.
+const dayNum = (k) => Math.round(Date.UTC(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)) / 864e5);
+const attendDays = () => recs().filter(([, r]) => r.status === 'attend').map(([k]) => k).sort();
+const fmtDays = (v) => String(Math.round(v * 10) / 10) + '일';
+function comebacks() {
+  const d = attendDays();
+  const out = [];
+  for (let i = 1; i < d.length; i++) {
+    const g = dayNum(d[i]) - dayNum(d[i - 1]);
+    if (g >= 2) out.push({ key: d[i], days: g });
+  }
+  return out;
+}
+function comebackStats() {
+  const list = comebacks();
+  const days = attendDays();
+  const res = {
+    list,
+    last: list.length ? list[list.length - 1] : null,
+    fastest: list.length ? Math.min(...list.map((x) => x.days)) : null,
+    compare: null,
+  };
+  // 짧은 기간끼리 비교하지 않음: 다시 시작한 기록 4번 이상 + 첫 출석 후 4주 이상
+  const spanOk = days.length > 0 && dayNum(todayKey()) - dayNum(days[0]) >= 28;
+  if (list.length >= 4 && spanOk) {
+    const k = Math.min(5, Math.floor(list.length / 2));
+    const avg = (arr) => arr.reduce((sum, x) => sum + x.days, 0) / arr.length;
+    const before = avg(list.slice(0, k));
+    const now = avg(list.slice(-k));
+    res.compare = { before, now, k, better: now <= before - 0.5 };
+  }
+  return res;
+}
+// 오늘 아직 안 갔고 쉬기도 안 눌렀을 때, 오늘 가면 며칠 만인지
+function gapToday() {
+  const tk = todayKey();
+  if (state.records[tk]) return 0;
+  const d = attendDays().filter((k) => k < tk);
+  if (!d.length) return 0;
+  const g = dayNum(tk) - dayNum(d[d.length - 1]);
+  return g >= 2 ? g : 0;
+}
+
 function planLabel(t) {
   const [hh, mm] = t.split(':').map(Number);
   const d = new Date();
@@ -633,8 +699,10 @@ function renderToday(animate) {
   // 과거의 나: 쓸 수 있는 문장 중 하루에 하나씩 돌아가며 보여줌
   const lines = pastLines();
   const dayIdx = Math.floor(new Date(todayKey()).getTime() / 864e5);
-  $('reluctant-line').hidden = lines.length === 0;
-  $('reluctant-line').textContent = lines.length ? lines[dayIdx % lines.length] : '';
+  const gap = gapToday();
+  const line = gap ? '오늘 가면 ' + gap + '일 만에 다시 시작하는 거예요.' : (lines.length ? lines[dayIdx % lines.length] : '');
+  $('reluctant-line').hidden = !line;
+  $('reluctant-line').textContent = line;
 
   const k = todayKey();
   const r = state.records[k];
@@ -655,8 +723,9 @@ function renderToday(animate) {
     stateBlock(ICON_MOON, 'rest', '오늘은 쉬어요.', '지금까지의 기록은 그대로예요.', animate);
     box.append(btn('plain', '그래도 가볼래요', () => actions.clearToday('쉬기를 취소했어요')));
   } else if (!r.finishedAt) {
+    const cbToday = comebacks().find((x) => x.key === k);
     stateBlock(cellStrip(n, animate), '', r.reluctant ? '가기 싫은 날에도 왔어요.' : '도착했어요.',
-      timeOf(r.arrivedAt) + ' 도착 · ' + n + '번째 출석', animate);
+      (cbToday ? cbToday.days + '일 만에 다시 시작했어요' : timeOf(r.arrivedAt) + ' 도착') + ' · ' + n + '번째 출석', animate);
     box.append(
       hapBtn('primary', '운동 끝났어요', actions.finish),
       btn('text', '도착 취소', () => actions.clearToday('도착 기록을 지웠어요'))
@@ -848,6 +917,8 @@ function renderRecord(animateNew) {
   $('cells').innerHTML = html;
   $('cells').setAttribute('aria-label', '출석 ' + n + '칸');
 
+  renderComeback();
+
   if (calY === undefined) { calY = now.getFullYear(); calM = now.getMonth(); }
   $('cal-title').textContent = calY + '년 ' + (calM + 1) + '월';
   const first = new Date(calY, calM, 1).getDay();
@@ -869,6 +940,39 @@ function renderRecord(animateNew) {
     ? '마지막 백업 후 2주가 지났어요.'
     : '아직 백업한 적이 없어요.';
 }
+function renderComeback() {
+  const box = $('comeback');
+  box.innerHTML = '';
+  const cb = comebackStats();
+  const gap = gapToday();
+  const line = (t, cls) => box.append(el('p', cls || 'cb-line', t));
+
+  if (cb.compare && cb.compare.better) {
+    // 나아졌을 때만 그때의 나와 지금의 나를 나란히 보여줌
+    line('다시 시작하는 데 걸리는 시간이 줄었어요.', 'cb-title');
+    const max = Math.max(cb.compare.before, cb.compare.now);
+    [['그때의 나', cb.compare.before, ''], ['지금의 나', cb.compare.now, 'now']].forEach(([label, v, cls]) => {
+      const row = el('div', 'cb-row ' + cls);
+      const track = el('div', 'cb-track');
+      const bar = el('div', 'cb-bar');
+      bar.style.width = Math.max(6, (v / max) * 100) + '%';
+      track.append(bar);
+      row.append(el('span', '', label), track, el('b', '', '평균 ' + fmtDays(v)));
+      box.append(row);
+    });
+    line('처음 ' + cb.compare.k + '번과 최근 ' + cb.compare.k + '번, 쉬었다가 다시 간 날을 비교했어요.', 'cb-hint');
+  } else if (cb.list.length) {
+    // 비교할 만큼 쌓이지 않았거나 나아지지 않았을 때: 사실만 보여줌
+    line('지난번엔 ' + cb.last.days + '일 만에 다시 갔어요.');
+    if (cb.list.length >= 2) line('가장 빨리 다시 시작한 건 ' + cb.fastest + '일 만이었어요.');
+    if (gap) line('오늘 가면 ' + gap + '일 만이에요.', 'cb-line accent');
+    if (!cb.compare) line('쉬었다가 다시 간 날이 4번 쌓이고 4주가 지나면, 그때의 나와 비교해 드릴게요.', 'cb-hint');
+  } else {
+    line('쉬었다가 다시 가면, 며칠 만에 돌아왔는지 여기에 쌓여요.');
+    if (gap) line('오늘 가면 ' + gap + '일 만이에요.', 'cb-line accent');
+  }
+}
+
 $('cal-prev').addEventListener('click', () => { calM--; if (calM < 0) { calM = 11; calY--; } renderRecord(); });
 $('cal-next').addEventListener('click', () => { calM++; if (calM > 11) { calM = 0; calY++; } renderRecord(); });
 
