@@ -43,8 +43,8 @@ LAYOUT: 위에 정보, 엄지가 닿는 아래에 버튼.
 *{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
 /* 시작 화면: 아이콘이 잠깐 보였다가 앱 화면으로 넘어감. 자바스크립트 없이 CSS만으로 사라짐 */
 #splash{position:fixed;inset:0;z-index:100;background:#fff;pointer-events:none;animation:splashout .9s ease-in-out .8s forwards}
-/* 아이콘 중심을 화면 높이의 42% 지점에 (정중앙보다 살짝 위). 시동 이미지와 같은 위치 */
-#splash img{position:absolute;left:50%;top:42%;width:150px;height:150px;display:block;transform:translate(-50%,-50%);animation:splashlogo .9s ease-in-out .8s forwards}
+/* 아이콘 중심을 화면 높이의 45% 지점에 (정중앙보다 살짝 위). 시동 이미지와 같은 위치 */
+#splash img{position:absolute;left:50%;top:45%;width:150px;height:150px;display:block;transform:translate(-50%,-50%);animation:splashlogo .9s ease-in-out .8s forwards}
 @keyframes splashout{to{opacity:0;visibility:hidden}}
 @keyframes splashlogo{to{transform:translate(-50%,-50%) scale(1.08)}}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);touch-action:manipulation}
