@@ -1,6 +1,6 @@
 // become — 오프라인 지원용 서비스 워커
 // 앱을 고친 뒤에는 CACHE 이름의 숫자를 올려야 아이폰에 새 버전이 반영돼요.
-const CACHE = 'become-v20'; // index.html의 APP_VERSION과 같이 올림
+const CACHE = 'become-v21'; // index.html의 APP_VERSION과 같이 올림
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png', './splash-390x844.png'];
 
 self.addEventListener('install', (e) => {
@@ -21,10 +21,13 @@ self.addEventListener('fetch', (e) => {
   // 화면(HTML)은 인터넷이 되면 새 버전, 안 되면 저장된 버전
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      // 브라우저 캐시를 건너뛰고 서버에 새 버전이 있는지 확인 (업데이트가 바로 보이게)
+      fetch(req.url, { cache: 'no-cache', redirect: 'manual' })
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put('./index.html', copy));
+          }
           return res;
         })
         .catch(() => caches.match('./index.html'))

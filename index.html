@@ -42,12 +42,13 @@ LAYOUT: 위에 정보, 엄지가 닿는 아래에 버튼.
 :root[data-theme=light]{color-scheme:light}
 :root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
 /* 시작 화면: 아이콘이 잠깐 보였다가 앱 화면으로 넘어감. 자바스크립트 없이 CSS만으로 사라짐 */
 #splash{position:fixed;inset:0;z-index:100;pointer-events:none;background:#fff url(splash-390x844.png) center/cover no-repeat;transform-origin:50% 45%;animation:splashout .9s ease-in-out .8s forwards}
 /* 아이폰이 앱을 켤 때 보여주는 시작 이미지와 '같은 그림 파일'을 그대로 깔아서, 아이콘 위치가 한 치도 어긋나지 않게 함 */
 @keyframes splashout{to{opacity:0;visibility:hidden;transform:scale(1.06)}}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);touch-action:manipulation}
-body{font:17px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none;overflow-x:clip}
+body{font:17px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none;overflow-x:clip;word-break:keep-all;overflow-wrap:break-word}
 button,input{font:inherit;color:inherit}
 button{border:0;background:none;padding:0;cursor:pointer}
 .app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto}
@@ -386,7 +387,7 @@ const pad = (n) => String(n).padStart(2, '0');
 const keyOf = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const todayKey = () => keyOf(new Date());
 // 앱 버전: 올릴 때마다 sw.js의 CACHE 번호와 같이 올린다
-const APP_VERSION = 20;
+const APP_VERSION = 21;
 $('app-ver').textContent = '버전 ' + APP_VERSION;
 // 밤 12시를 넘겨 운동하는 날: 어제 도착해서 아직 끝내지 않았다면 '오늘' 화면에서도 그 기록을 이어서 보여준다.
 // 기록의 날짜는 도착한 날 그대로 두고, 화면만 이어 준다.
@@ -604,16 +605,17 @@ const actions = {
       state.records[k] = { status: 'attend', arrivedAt: Date.now(), reluctant: !!reluctant || !!state.help[k] };
     }, null);
   },
-  mood: (v) => change((k) => {
+  mood: (v, key) => change((k) => {
     const r = state.records[k];
+    if (!r) return;
     if (r.mood === v) delete r.mood; else r.mood = v;
-  }, null, false),
-  finish: () => {
-    change((k) => { state.records[k].finishedAt = Date.now(); }, null);
+  }, null, false, key),
+  finish: (key) => {
+    change((k) => { const r = state.records[k]; if (r && r.status === 'attend') r.finishedAt = Date.now(); }, null, true, key);
   },
   rest: () => change((k) => { state.records[k] = { status: 'rest', at: Date.now() }; }, null),
-  clearToday: (msg) => change((k) => { delete state.records[k]; }, msg),
-  unfinish: () => change((k) => { delete state.records[k].finishedAt; }, '끝 기록을 지웠어요'),
+  clearToday: (msg, key) => change((k) => { delete state.records[k]; }, msg, true, key),
+  unfinish: (key) => change((k) => { if (state.records[k]) delete state.records[k].finishedAt; }, '끝 기록을 지웠어요', true, key),
 };
 
 const ICON_CHECK = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -623,7 +625,7 @@ const ICON_STEP = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" s
 
 // '가기 싫어요'에서 정한 것을 오늘 화면에 보여줄 문구
 function committedView(h) {
-  if (h.reason === 'out') return [ICON_STEP, '문 밖으로 나왔어요.', '헬스장에 도착하면 아래 버튼을 눌러요.'];
+  if (h.reason === 'out') return [ICON_STEP, '문 밖으로 나왔어요.', '도착하면 아래 버튼을 눌러요.'];
   if (h.reason === 'burden') return [ICON_STEP, '오늘은 10분만 하고 와요.', '10분만 해도 출석은 똑같이 한 칸이에요.'];
   if (h.reason === 'tired') return [ICON_STEP, '오늘은 가볍게만 하고 와요.', '걷기만 하고 와도 출석이에요.'];
   if (h.reason === 'later' && h.planTime) {
@@ -768,18 +770,18 @@ function renderToday(animate) {
     if (!view) box.append(hapBtn('secondary', '가기 싫었는데 왔어요', () => actions.arrive(true)));
     const row = document.createElement('div');
     row.className = 'textrow';
-    row.append(btn('text', view ? '다른 방법 볼래요' : '가기 싫어요', openHelp), btn('text', '오늘은 쉬기', actions.rest));
+    row.append(btn('text', view ? '다른 방법 볼래요' : '가기 싫어요', openHelp), btn('text', '오늘은 쉬기', () => actions.rest()));
     box.append(row);
   } else if (r.status === 'rest') {
     stateBlock(ICON_MOON, 'rest', '오늘은 쉬어요.', '지금까지의 기록은 그대로예요.', animate);
-    box.append(btn('plain', '그래도 가볼래요', () => actions.clearToday(null)));
+    box.append(btn('plain', '그래도 가볼래요', () => actions.clearToday(null, k)));
   } else if (!r.finishedAt) {
     const cbToday = comebacks().find((x) => x.key === k);
     stateBlock(cellStrip(n, animate), '', r.reluctant ? '가기 싫은 날에도 왔어요.' : '도착했어요.',
       (cbToday ? cbToday.days + '일 만에 다시 시작했어요' : timeOf(r.arrivedAt) + ' 도착') + ' · ' + n + '번째 출석', animate);
     box.append(
-      hapBtn('primary', '운동 끝났어요', actions.finish),
-      btn('text', '도착 취소', () => actions.clearToday('도착 기록을 지웠어요'))
+      hapBtn('primary', '운동 끝났어요', () => actions.finish(k)),
+      btn('text', '도착 취소', () => actions.clearToday('도착 기록을 지웠어요', k))
     );
   } else {
     stateBlock(r.mood ? weatherIcon(r.mood) : cellStrip(n, false), '', '오늘도 해냈어요.',
@@ -791,15 +793,15 @@ function renderToday(animate) {
     const moods = document.createElement('div');
     moods.className = 'moods';
     MOODS.forEach((label, i) => {
-      const b = btn('mood', label, () => actions.mood(i + 1));
+      const b = btn('mood', label, () => actions.mood(i + 1, k));
       b.className = 'mood';
       b.setAttribute('aria-pressed', r.mood === i + 1 ? 'true' : 'false');
       moods.append(b);
     });
     $('state').append(q, moods);
-    if (r.mood) $('state').append(wrapCard(r, h), el('p', 'mood-note', '이제 앱을 닫아도 돼요.'));
+    if (r.mood) $('state').append(wrapCard(r, h, k), el('p', 'mood-note', '이제 앱을 닫아도 돼요.'));
     else $('state').append(el('p', 'mood-note', '기분 기록은 선택 사항이에요.'));
-    box.append(btn('text', '끝 기록 취소', actions.unfinish));
+    box.append(btn('text', '끝 기록 취소', () => actions.unfinish(k)));
   }
 }
 
@@ -812,7 +814,7 @@ function moodMessage(r) {
   if (r.mood === 3) return '보통인 날도 똑같이 한 칸이에요.';
   return '힘든 날이었네요. 그래도 오늘 한 칸은 그대로 쌓였어요.';
 }
-function wrapCard(r, h) {
+function wrapCard(r, h, k) {
   const card = el('div', 'wrap pop');
   if (r.reluctant) {
     const row = el('div', 'ba');
@@ -825,7 +827,9 @@ function wrapCard(r, h) {
   }
   card.append(el('p', 'wrap-msg', moodMessage(r)));
   const now = new Date();
-  const stats = ['이번 달 ' + monthCount(now.getFullYear(), now.getMonth()) + '번째 출석'];
+  const y = +k.slice(0, 4), m = +k.slice(5, 7) - 1;
+  const sameMonth = y === now.getFullYear() && m === now.getMonth();
+  const stats = [(sameMonth ? '이번 달 ' : (m + 1) + '월 ') + monthCount(y, m) + '번째 출석'];
   if (r.mood >= 4) stats.push('기분 좋았던 날 ' + recs().filter(([, x]) => x.status === 'attend' && x.mood >= 4).length + '번째');
   else stats.push('지금까지 ' + attendCount() + '회');
   card.append(el('p', 'wrap-stat', stats.join(' · ')));
@@ -855,9 +859,12 @@ function helpStep(step) {
   if (h) { h.step = step; save(); }
   renderHelp();
 }
+let helpReason = null;
 function helpCommit(extra) {
   closeSheets();
-  change((k) => { Object.assign(state.help[k], extra || {}, { step: 'committed' }); }, null);
+  change((k) => {
+    state.help[k] = Object.assign(state.help[k] || { reason: helpReason, at: Date.now() }, extra || {}, { step: 'committed' });
+  }, null);
 }
 function renderHelp(forceAsk) {
   const body = $('help-body');
@@ -876,6 +883,7 @@ function renderHelp(forceAsk) {
     return;
   }
 
+  helpReason = h.reason;
   let title, sub, main;
   const extra = [];
   if (h.reason === 'out' && h.step !== 'clothes') {
@@ -884,7 +892,7 @@ function renderHelp(forceAsk) {
     main = btn('primary', '운동복 입었어요', () => helpStep('clothes'));
   } else if (h.reason === 'out') {
     title = '신발 신고 문 밖으로만 나가 볼까요?';
-    sub = '헬스장까지 가는 건 나가서 생각해요.';
+    sub = '그다음은 나가서 생각해요.';
     main = btn('primary', '나왔어요', () => helpCommit());
   } else if (h.reason === 'burden') {
     title = '오늘은 10분만 하고 와도 돼요.';
@@ -1072,7 +1080,12 @@ function renderDayDetail() {
     }, null, false, k)));
   } else {
     if (r.status === 'attend') dayFacts(k).forEach((t) => box.append(el('p', 'cd-line', t)));
-    else box.append(el('p', 'cd-line', '쉬기로 한 날'));
+    else {
+      box.append(el('p', 'cd-line', '쉬기로 한 날'));
+      box.append(btn('secondary', '이 날 다녀왔어요', () => change((key) => {
+        state.records[key] = { status: 'attend', late: true };
+      }, null, false, k)));
+    }
     box.append(btn('text', '이 날 기록 지우기', () => change((key) => {
       delete state.records[key];
     }, '이 날 기록을 지웠어요', false, k)));
@@ -1118,8 +1131,8 @@ $('cal').addEventListener('click', (e) => {
   selectedDay = selectedDay === b.dataset.k ? null : b.dataset.k;
   renderRecord();
 });
-$('cal-prev').addEventListener('click', () => { calM--; if (calM < 0) { calM = 11; calY--; } renderRecord(); });
-$('cal-next').addEventListener('click', () => { calM++; if (calM > 11) { calM = 0; calY++; } renderRecord(); });
+$('cal-prev').addEventListener('click', () => { selectedDay = null; calM--; if (calM < 0) { calM = 11; calY--; } renderRecord(); });
+$('cal-next').addEventListener('click', () => { selectedDay = null; calM++; if (calM > 11) { calM = 0; calY++; } renderRecord(); });
 
 function render(animate) { renderToday(animate); renderRecord(animate); }
 
@@ -1259,7 +1272,7 @@ document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.prev
     const t = target;
     target = null;
     if (t.dataset.cancel) {
-      e.preventDefault(); // 클릭이 만들어지지 않게
+      if (e.cancelable) e.preventDefault(); // 클릭이 만들어지지 않게
       setTimeout(() => { delete t.dataset.cancel; }, 400);
     }
   }, { passive: false, capture: true });
@@ -1272,6 +1285,13 @@ document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.prev
 
 // 날짜가 바뀌었을 수 있으니 앱으로 돌아올 때마다 다시 그림
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+// 앱을 켜 둔 채 자정(그리고 자정 넘겨 운동하던 기록이 끝나는 시각)이 지나도 화면이 바뀌게
+let dayKeyShown = null;
+setInterval(() => {
+  const now = todayKey() + '|' + activeKey();
+  if (dayKeyShown && now !== dayKeyShown) render();
+  dayKeyShown = now;
+}, 30000);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
