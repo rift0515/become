@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -47,7 +47,7 @@ LAYOUT: 위에 정보, 엄지가 닿는 아래에 버튼.
 #splash img{position:absolute;left:50%;top:42%;width:150px;height:150px;display:block;transform:translate(-50%,-50%);animation:splashlogo .9s ease-in-out .8s forwards}
 @keyframes splashout{to{opacity:0;visibility:hidden}}
 @keyframes splashlogo{to{transform:translate(-50%,-50%) scale(1.08)}}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);touch-action:manipulation}
 body{font:17px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none;overflow-x:clip}
 button,input{font:inherit;color:inherit}
 button{border:0;background:none;padding:0;cursor:pointer}
@@ -91,6 +91,27 @@ main{flex:1;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 8px) 24px 20
 .strip i.on{background:var(--primary)}
 .strip i.new{animation:cellin .5s cubic-bezier(.2,1.4,.4,1)}
 @keyframes cellin{0%{transform:scale(.2);opacity:0}100%{transform:scale(1);opacity:1}}
+/* 기분 날씨 */
+.wxbox{width:112px;height:112px;margin:0 auto 12px;animation:wxin .5s cubic-bezier(.2,1.3,.4,1)}
+.wxbox svg{width:100%;height:100%;display:block;overflow:visible}
+@keyframes wxin{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+.wx-sun{fill:#FFC23D}
+.wx-ray{stroke:#FFC23D;stroke-width:5;stroke-linecap:round}
+.wx-rays{transform-origin:60px 60px;transform-box:view-box;animation:wxspin 14s linear infinite}
+.wx-core{transform-origin:60px 60px;transform-box:view-box;animation:wxpulse 2.6s ease-in-out infinite}
+.wx-glow{fill:#FFC23D;opacity:.22;transform-origin:60px 60px;transform-box:view-box;animation:wxglow 2.6s ease-in-out infinite}
+.wx-spark{fill:#FFC23D;transform-box:fill-box;transform-origin:center;animation:wxtwinkle 1.8s ease-in-out infinite}
+.wx-cloud{fill:light-dark(#D3DAE2,#5A626C);animation:wxdrift 4s ease-in-out infinite}
+.wx-cloud.back{fill:light-dark(#E4E9EE,#454C55);animation-duration:5.5s;animation-direction:reverse}
+.wx-cloud.dark{fill:light-dark(#A5AFBB,#4A515A)}
+.wx-drop{stroke:#4FA8E8;stroke-width:4;stroke-linecap:round;animation:wxrain 1.1s linear infinite}
+.wx-sun-small .wx-rays,.wx-sun-small .wx-core{transform-origin:44px 46px}
+@keyframes wxspin{to{transform:rotate(360deg)}}
+@keyframes wxpulse{50%{transform:scale(1.06)}}
+@keyframes wxglow{0%,100%{transform:scale(.9);opacity:.15}50%{transform:scale(1.12);opacity:.3}}
+@keyframes wxtwinkle{0%,100%{transform:scale(.3);opacity:0}50%{transform:scale(1);opacity:1}}
+@keyframes wxdrift{0%,100%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
+@keyframes wxrain{0%{transform:translateY(-4px);opacity:0}20%{opacity:1}100%{transform:translateY(20px);opacity:0}}
 .textrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}
 .mood-q{margin:22px 0 0!important;color:var(--text)!important;font-weight:600}
 .moods{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px}
@@ -545,6 +566,48 @@ function stateBlock(icon, iconCls, title, sub, animate) {
   const p = document.createElement('p'); p.textContent = sub;
   el.append(mark, h, p);
 }
+// 기분을 날씨로: 나쁨=비, 별로=흐림, 보통=구름 사이 해, 좋음=해, 매우 좋음=빛나는 해
+const WX_NAME = ['비', '흐림', '구름 조금', '맑음', '아주 맑음'];
+function wxRays(cx, cy, r1, r2, n) {
+  let out = '';
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    out += '<line class="wx-ray" x1="' + (cx + Math.cos(a) * r1).toFixed(1) + '" y1="' + (cy + Math.sin(a) * r1).toFixed(1) +
+      '" x2="' + (cx + Math.cos(a) * r2).toFixed(1) + '" y2="' + (cy + Math.sin(a) * r2).toFixed(1) + '"/>';
+  }
+  return out;
+}
+function cloud(cls, dx, dy, s) {
+  return '<g transform="translate(' + dx + ' ' + dy + ') scale(' + s + ')"><g class="wx-cloud ' + cls + '">' +
+    '<circle cx="46" cy="62" r="15"/><circle cx="64" cy="52" r="20"/><circle cx="82" cy="64" r="13"/>' +
+    '<rect x="32" y="60" width="62" height="19" rx="9.5"/></g></g>';
+}
+const SUN = '<g class="wx-rays">' + wxRays(60, 60, 36, 48, 8) + '</g><circle class="wx-sun wx-core" cx="60" cy="60" r="25"/>';
+const WEATHER = [
+  // 1 나쁨: 먹구름과 비
+  cloud('dark', 0, -6, 1) +
+    [42, 58, 74].map((x, i) => '<line class="wx-drop" style="animation-delay:' + (i * 0.35) + 's" x1="' + x + '" y1="82" x2="' + (x - 3) + '" y2="92"/>').join(''),
+  // 2 별로: 흐림
+  cloud('back', -14, -14, 0.8) + cloud('', 4, 0, 1),
+  // 3 보통: 구름 사이로 해
+  '<g class="wx-sun-small"><g class="wx-rays" style="transform-origin:44px 46px">' + wxRays(44, 46, 26, 35, 8) +
+    '</g><circle class="wx-sun wx-core" style="transform-origin:44px 46px" cx="44" cy="46" r="18"/></g>' + cloud('', 8, 4, 0.95),
+  // 4 좋음: 해
+  SUN,
+  // 5 매우 좋음: 빛나는 해와 반짝임
+  '<circle class="wx-glow" cx="60" cy="60" r="44"/>' + SUN +
+    [[18, 22, 0], [100, 26, 0.6], [98, 96, 1.2]].map(([x, y, d]) =>
+      '<path class="wx-spark" style="animation-delay:' + d + 's" d="M' + x + ' ' + (y - 7) + 'L' + (x + 2) + ' ' + (y - 2) + 'L' + (x + 7) + ' ' + y +
+      'L' + (x + 2) + ' ' + (y + 2) + 'L' + x + ' ' + (y + 7) + 'L' + (x - 2) + ' ' + (y + 2) + 'L' + (x - 7) + ' ' + y + 'L' + (x - 2) + ' ' + (y - 2) + 'Z"/>').join(''),
+];
+function weatherIcon(mood) {
+  const box = document.createElement('div');
+  box.className = 'wxbox';
+  box.setAttribute('role', 'img');
+  box.setAttribute('aria-label', '오늘 기분 ' + MOODS[mood - 1] + ', ' + WX_NAME[mood - 1]);
+  box.innerHTML = '<svg viewBox="0 0 120 120" aria-hidden="true">' + WEATHER[mood - 1] + '</svg>';
+  return box;
+}
 // 기록 화면의 누적 칸 중 지금 줄(10칸)을 그대로 보여줌. 오늘 칸만 톡 하고 채워짐
 function cellStrip(n, animate) {
   const strip = document.createElement('div');
@@ -598,7 +661,7 @@ function renderToday(animate) {
       btn('text', '도착 취소', () => actions.clearToday('도착 기록을 지웠어요'))
     );
   } else {
-    stateBlock(cellStrip(n, false), '', '오늘도 해냈어요.',
+    stateBlock(r.mood ? weatherIcon(r.mood) : cellStrip(n, false), '', '오늘도 해냈어요.',
       timeOf(r.arrivedAt) + ' – ' + timeOf(r.finishedAt) + ' · 운동 ' + duration(r.arrivedAt, r.finishedAt), animate);
     // 기분 기록 (선택, 한 번 터치, 같은 걸 다시 누르면 지워짐)
     const q = document.createElement('p');
@@ -919,6 +982,10 @@ $('wipe').addEventListener('click', () => {
   state = fresh(); save(); render(); closeSheet();
   toast('모든 기록을 지웠어요', () => { state = before; save(); render(); });
 });
+
+['gesturestart', 'gesturechange', 'gestureend'].forEach((t) =>
+  document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
+document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
 // 날짜가 바뀌었을 수 있으니 앱으로 돌아올 때마다 다시 그림
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
