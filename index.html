@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preload" href="splash-390x844.png" as="image">
 <link rel="apple-touch-startup-image" href="splash-390x844.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
 <title>become</title>
 <style>
@@ -42,11 +43,9 @@ LAYOUT: 위에 정보, 엄지가 닿는 아래에 버튼.
 :root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
 /* 시작 화면: 아이콘이 잠깐 보였다가 앱 화면으로 넘어감. 자바스크립트 없이 CSS만으로 사라짐 */
-#splash{position:fixed;inset:0;z-index:100;background:#fff;pointer-events:none;animation:splashout .9s ease-in-out .8s forwards}
-/* 아이콘 중심을 화면 높이의 45% 지점에 (정중앙보다 살짝 위). 시동 이미지와 같은 위치 */
-#splash img{position:absolute;left:50%;top:45%;width:150px;height:150px;display:block;transform:translate(-50%,-50%);animation:splashlogo .9s ease-in-out .8s forwards}
-@keyframes splashout{to{opacity:0;visibility:hidden}}
-@keyframes splashlogo{to{transform:translate(-50%,-50%) scale(1.08)}}
+#splash{position:fixed;inset:0;z-index:100;pointer-events:none;background:#fff url(splash-390x844.png) center/cover no-repeat;transform-origin:50% 45%;animation:splashout .9s ease-in-out .8s forwards}
+/* 아이폰이 앱을 켤 때 보여주는 시작 이미지와 '같은 그림 파일'을 그대로 깔아서, 아이콘 위치가 한 치도 어긋나지 않게 함 */
+@keyframes splashout{to{opacity:0;visibility:hidden;transform:scale(1.06)}}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);touch-action:manipulation}
 body{font:17px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none;overflow-x:clip}
 button,input{font:inherit;color:inherit}
@@ -209,7 +208,7 @@ textarea{width:100%;height:120px;border-radius:14px;border:0;background:var(--su
 </style>
 </head>
 <body>
-<div id="splash" aria-hidden="true"><img src="icon-512.png" alt=""></div>
+<div id="splash" aria-hidden="true"></div>
 <div class="app">
 <main>
   <!-- 오늘 -->

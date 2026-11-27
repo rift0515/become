@@ -1,7 +1,7 @@
 // become — 오프라인 지원용 서비스 워커
 // 앱을 고친 뒤에는 CACHE 이름의 숫자를 올려야 아이폰에 새 버전이 반영돼요.
-const CACHE = 'become-v14';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
+const CACHE = 'become-v15';
+const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png', './splash-390x844.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
