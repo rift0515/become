@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#FFFFFF">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="apple-touch-startup-image" href="splash-390x844.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
 <title>become</title>
 <style>
 /*
@@ -40,6 +41,10 @@ LAYOUT: 위에 정보, 엄지가 닿는 아래에 버튼.
 :root[data-theme=light]{color-scheme:light}
 :root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+/* 시작 화면: 아이콘이 잠깐 보였다가 앱 화면으로 넘어감. 자바스크립트 없이 CSS만으로 사라짐 */
+#splash{position:fixed;inset:0;z-index:100;background:#fff;display:grid;place-items:center;pointer-events:none;animation:splashout .3s ease .7s forwards}
+#splash img{width:150px;height:150px;display:block}
+@keyframes splashout{to{opacity:0;visibility:hidden}}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
 body{font:17px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased;overscroll-behavior:none;overflow-x:clip}
 button,input{font:inherit;color:inherit}
@@ -165,10 +170,11 @@ textarea{width:100%;height:120px;border-radius:14px;border:0;background:var(--su
 .toast{touch-action:none}
 .toast button{color:#7BE8B8;font-weight:600;min-height:44px;padding:0 10px;white-space:nowrap}
 
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}#splash{display:none}}
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true"><img src="icon-512.png" alt=""></div>
 <div class="app">
 <main>
   <!-- 오늘 -->
