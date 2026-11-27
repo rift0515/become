@@ -393,7 +393,7 @@ const pad = (n) => String(n).padStart(2, '0');
 const keyOf = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const todayKey = () => keyOf(new Date());
 // 앱 버전: 올릴 때마다 sw.js의 CACHE 번호와 같이 올린다
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 $('app-ver').textContent = '버전 ' + APP_VERSION;
 // 밤 12시를 넘겨 운동하는 날: 어제 도착해서 아직 끝내지 않았다면 '오늘' 화면에서도 그 기록을 이어서 보여준다.
 // 기록의 날짜는 도착한 날 그대로 두고, 화면만 이어 준다.
@@ -602,21 +602,23 @@ function change(mutate, msg, animate = true, key) {
   });
 }
 
+// 되돌리기 알림은 기록을 지우는 동작에만 띄운다. 도착·끝·쉬기처럼 앞으로 가는 동작은 화면이 바뀌는 것으로 충분하고,
+// 잘못 눌렀다면 화면에 있는 '도착 취소'·'끝 기록 취소'·'그래도 가볼래요'로 되돌릴 수 있다.
 const actions = {
   arrive: (reluctant) => {
     change((k) => {
       // '가기 싫어요'를 거쳐 온 날은 자동으로 '가기 싫었던 날'로 기록
       state.records[k] = { status: 'attend', arrivedAt: Date.now(), reluctant: !!reluctant || !!state.help[k] };
-    }, attendCount() + 1 + '번째 출석이에요');
+    }, null);
   },
   mood: (v) => change((k) => {
     const r = state.records[k];
     if (r.mood === v) delete r.mood; else r.mood = v;
   }, null, false),
   finish: () => {
-    change((k) => { state.records[k].finishedAt = Date.now(); }, '오늘 운동을 마쳤어요');
+    change((k) => { state.records[k].finishedAt = Date.now(); }, null);
   },
-  rest: () => change((k) => { state.records[k] = { status: 'rest', at: Date.now() }; }, '오늘은 쉬기로 했어요'),
+  rest: () => change((k) => { state.records[k] = { status: 'rest', at: Date.now() }; }, null),
   clearToday: (msg) => change((k) => { delete state.records[k]; }, msg),
   unfinish: () => change((k) => { delete state.records[k].finishedAt; }, '끝 기록을 지웠어요'),
 };
@@ -777,7 +779,7 @@ function renderToday(animate) {
     box.append(row);
   } else if (r.status === 'rest') {
     stateBlock(ICON_MOON, 'rest', '오늘은 쉬어요.', '지금까지의 기록은 그대로예요.', animate);
-    box.append(btn('plain', '그래도 가볼래요', () => actions.clearToday('쉬기를 취소했어요')));
+    box.append(btn('plain', '그래도 가볼래요', () => actions.clearToday(null)));
   } else if (!r.finishedAt) {
     const cbToday = comebacks().find((x) => x.key === k);
     stateBlock(cellStrip(n, animate), '', r.reluctant ? '가기 싫은 날에도 왔어요.' : '도착했어요.',
@@ -862,7 +864,7 @@ function helpStep(step) {
 }
 function helpCommit(extra) {
   closeSheets();
-  change((k) => { Object.assign(state.help[k], extra || {}, { step: 'committed' }); }, '좋아요. 할 수 있는 만큼만 해요');
+  change((k) => { Object.assign(state.help[k], extra || {}, { step: 'committed' }); }, null);
 }
 function renderHelp(forceAsk) {
   const body = $('help-body');
@@ -1071,7 +1073,7 @@ function renderDayDetail() {
     box.append(el('p', 'cd-hint', '이 날은 기록이 없어요.'));
     box.append(btn('secondary', '이 날 다녀왔어요', () => change((key) => {
       state.records[key] = { status: 'attend', late: true };
-    }, '이 날을 출석으로 남겼어요', false, k)));
+    }, null, false, k)));
   } else {
     if (r.status === 'attend') dayFacts(k).forEach((t) => box.append(el('p', 'cd-line', t)));
     else box.append(el('p', 'cd-line', '쉬기로 한 날'));
