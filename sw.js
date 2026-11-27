@@ -1,6 +1,6 @@
 // become — 오프라인 지원용 서비스 워커
 // 앱을 고친 뒤에는 CACHE 이름의 숫자를 올려야 아이폰에 새 버전이 반영돼요.
-const CACHE = 'become-v19'; // index.html의 APP_VERSION과 같이 올림
+const CACHE = 'become-v20'; // index.html의 APP_VERSION과 같이 올림
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png', './splash-390x844.png'];
 
 self.addEventListener('install', (e) => {

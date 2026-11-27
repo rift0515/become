@@ -124,10 +124,10 @@ main{flex:1;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 8px) 24px 20
 .cb-row.now .cb-bar{background:var(--primary)}
 .cb-row.now span{color:var(--text);font-weight:600}
 /* 쌓인 칸 */
-.cells-rule{margin:-4px 0 12px}
+.cell.next{background:transparent;border:1.5px dashed color-mix(in srgb,var(--primary-ink) 50%,transparent)}
 button.cell{border:0;padding:0;cursor:pointer;position:relative}
 /* 가기 싫었는데 간 날: 앱 아이콘처럼 번지는 초록 + 가끔 스치는 빛 */
-.cell.tough,.strip i.tough,.tough-key{background:linear-gradient(135deg,#C2FAD6 0%,#5BE6A2 45%,#0BBE70 100%)!important;position:relative;overflow:hidden}
+.cell.tough,.strip i.tough{background:linear-gradient(135deg,#C2FAD6 0%,#5BE6A2 45%,#0BBE70 100%)!important;position:relative;overflow:hidden}
 .cell.tough::after,.strip i.tough::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.8) 50%,transparent 70%);transform:translateX(-130%);animation:shine 7s ease-in-out infinite;animation-delay:var(--d,0s)}
 @keyframes shine{0%,78%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
 .cell.sel{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--text)}
@@ -247,7 +247,6 @@ textarea{width:100%;height:120px;border-radius:14px;border:0;background:var(--su
     <div class="card" style="margin-top:24px">
       <p class="label">지금까지 쌓은 출석</p>
       <div class="big" id="today-count" style="margin-top:4px"></div>
-      <p class="hint">한 칸마다 실제로 간 하루가 담겨 있어요.</p>
       <p class="mine" id="reluctant-line" hidden></p>
     </div>
 
@@ -268,13 +267,7 @@ textarea{width:100%;height:120px;border-radius:14px;border:0;background:var(--su
 
     <div class="sec">
       <h3>쌓인 칸</h3>
-      <p class="hint cells-rule">한 칸 = 헬스장에 도착한 하루예요. 간 순서대로 왼쪽부터 쌓이고, 쉬어도 줄지 않아요.</p>
       <div class="cells" id="cells"></div>
-      <div class="legend">
-        <span><i style="background:var(--primary)"></i>간 날</span>
-        <span><i class="tough-key"></i>가기 싫었는데 간 날</span>
-        <span><i style="background:var(--empty)"></i>다음에 채울 칸</span>
-      </div>
       <div class="cell-detail" id="cell-detail"></div>
     </div>
 
@@ -393,7 +386,7 @@ const pad = (n) => String(n).padStart(2, '0');
 const keyOf = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const todayKey = () => keyOf(new Date());
 // 앱 버전: 올릴 때마다 sw.js의 CACHE 번호와 같이 올린다
-const APP_VERSION = 19;
+const APP_VERSION = 20;
 $('app-ver').textContent = '버전 ' + APP_VERSION;
 // 밤 12시를 넘겨 운동하는 날: 어제 도착해서 아직 끝내지 않았다면 '오늘' 화면에서도 그 기록을 이어서 보여준다.
 // 기록의 날짜는 도착한 날 그대로 두고, 화면만 이어 준다.
@@ -998,6 +991,8 @@ function renderRecord(animateNew) {
     : '아직 백업한 적이 없어요.';
 }
 // ---- 쌓인 칸: 한 칸 = 간 하루. 누르면 그날 기록을 보여줌 ----
+// 설명 문구 없이 알 수 있게: 처음엔 가장 최근 칸이 골라져 있고, 아래에 그날 기록이 보인다.
+// 칸 하나 = 간 하루라는 걸 예시로 보여 주고, 반짝이는 칸은 눌러 보면 무슨 날인지 나온다.
 let selectedCell = null;
 function dayLabel(k) {
   return new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10))
@@ -1007,13 +1002,13 @@ function renderCells(animateNew) {
   const att = attendDays();
   const n = att.length;
   const tk = todayKey();
-  if (selectedCell && !att.includes(selectedCell)) selectedCell = null;
+  if (!att.includes(selectedCell)) selectedCell = n ? att[n - 1] : null;
   const box = $('cells');
   box.innerHTML = '';
   // 지금 줄의 남은 칸까지만 빈칸으로 (꽉 찼다면 다음 줄 하나)
   const total = Math.max(10, Math.ceil((n + 1) / 10) * 10);
   for (let i = 0; i < total; i++) {
-    if (i >= n) { box.append(el('span', 'cell')); continue; }
+    if (i >= n) { box.append(el('span', i === n ? 'cell next' : 'cell')); continue; }
     const k = att[i];
     const r = state.records[k];
     const b = document.createElement('button');
@@ -1023,7 +1018,8 @@ function renderCells(animateNew) {
     b.setAttribute('aria-label', (i + 1) + '번째 칸, ' + dayLabel(k) + (r.reluctant ? ', 가기 싫었는데 간 날' : ''));
     b.addEventListener('click', () => {
       if (b.dataset.cancel) return;
-      selectedCell = selectedCell === k ? null : k;
+      if (selectedCell === k) return;
+      selectedCell = k;
       renderCells(false);
     });
     box.append(b);
@@ -1033,8 +1029,8 @@ function renderCells(animateNew) {
 function renderCellDetail(att) {
   const box = $('cell-detail');
   box.innerHTML = '';
-  if (!att.length) { box.append(el('p', 'cd-hint', '헬스장에 도착하면 첫 칸이 채워져요.')); return; }
-  if (!selectedCell) { box.append(el('p', 'cd-hint', '칸을 누르면 그날 기록을 볼 수 있어요.')); return; }
+  box.hidden = !selectedCell;
+  if (!selectedCell) return;
   const k = selectedCell;
   box.append(el('p', 'cd-title', (att.indexOf(k) + 1) + '번째 칸 · ' + dayLabel(k)));
   dayFacts(k).forEach((t) => box.append(el('p', 'cd-line', t)));
