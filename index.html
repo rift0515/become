@@ -85,6 +85,15 @@ main{flex:1;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 8px) 24px 20
 .mood:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
 .mood-note{font-size:13px!important;color:var(--faint)!important}
 .opt{text-align:left;padding:0 20px}
+.wrap{background:var(--surface);border-radius:16px;padding:16px;margin-top:14px;text-align:left}
+.ba{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.ba-item{flex:1;background:var(--bg);border-radius:12px;padding:10px 12px}
+.ba-label{display:block;font-size:12px;color:var(--faint)}
+.ba-val{display:block;font-size:15px;font-weight:600;color:var(--sub);margin-top:2px}
+.ba-val.on{color:var(--primary)}
+.ba-arrow{color:var(--faint);font-size:18px}
+.state .wrap-msg{margin:0;font-size:16px;font-weight:600;color:var(--text);line-height:1.45}
+.state .wrap-stat{margin:6px 0 0;font-size:14px;color:var(--sub)}
 .sheet .lead{font-size:15px;color:var(--sub);margin:-12px 0 0}
 .evidence{background:var(--primary-soft);border-radius:16px;padding:14px 16px;margin-top:20px}
 .evidence p{margin:0;color:var(--primary);font-weight:600;font-size:15px}
@@ -146,6 +155,7 @@ textarea{width:100%;height:120px;border-radius:14px;border:0;background:var(--su
 /* 토스트 */
 .toast{position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 72px);max-width:448px;margin:0 auto;background:light-dark(#1A1D23,#2C2E33);color:#fff;border-radius:14px;padding:0 8px 0 16px;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:15px;opacity:0;transform:translateY(10px);pointer-events:none;transition:.2s;z-index:20}
 .toast.show{opacity:1;transform:none;pointer-events:auto}
+.toast{touch-action:none}
 .toast button{color:#8AB4FF;font-weight:600;min-height:44px;padding:0 10px;white-space:nowrap}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -373,6 +383,8 @@ function haptic() {
 // 되돌리기
 let toastTimer, undoFn = null;
 function toast(msg, undo) {
+  $('toast').style.transform = '';
+  $('toast').style.opacity = '';
   $('toast-msg').textContent = msg;
   undoFn = undo || null;
   $('toast-undo').hidden = !undo;
@@ -385,6 +397,39 @@ $('toast-undo').addEventListener('click', () => {
   undoFn = null;
   $('toast').classList.remove('show');
 });
+// 알림 바를 아래로 쓸어내리면 닫힘
+{
+  const t = $('toast');
+  let startY = null, dy = 0;
+  t.addEventListener('touchstart', (e) => {
+    startY = e.touches[0].clientY;
+    dy = 0;
+    t.style.transition = 'none';
+  }, { passive: true });
+  t.addEventListener('touchmove', (e) => {
+    if (startY === null) return;
+    dy = Math.max(0, e.touches[0].clientY - startY);
+    t.style.transform = 'translateY(' + dy + 'px)';
+    t.style.opacity = String(Math.max(0.2, 1 - dy / 100));
+  }, { passive: true });
+  const end = () => {
+    if (startY === null) return;
+    startY = null;
+    t.style.transition = '';
+    if (dy > 24) {
+      clearTimeout(toastTimer);
+      undoFn = null;
+      t.style.transform = 'translateY(100px)';
+      t.style.opacity = '0';
+      setTimeout(() => { t.classList.remove('show'); t.style.transform = ''; t.style.opacity = ''; }, 200);
+    } else {
+      t.style.transform = '';
+      t.style.opacity = '';
+    }
+  };
+  t.addEventListener('touchend', end);
+  t.addEventListener('touchcancel', end);
+}
 
 // 오늘의 기록(출석·쉬기)과 도움 기록을 함께 바꾸고, 되돌리기를 제공
 function change(mutate, msg, animate = true) {
@@ -533,12 +578,40 @@ function renderToday(animate) {
       b.setAttribute('aria-pressed', r.mood === i + 1 ? 'true' : 'false');
       moods.append(b);
     });
-    const note = document.createElement('p');
-    note.className = 'mood-note';
-    note.textContent = r.mood ? '기록했어요. 같은 걸 다시 누르면 지워져요.' : '기분 기록은 선택 사항이에요.';
-    $('state').append(q, moods, note);
+    $('state').append(q, moods);
+    if (r.mood) $('state').append(wrapCard(r, h), el('p', 'mood-note', '이제 앱을 닫아도 돼요.'));
+    else $('state').append(el('p', 'mood-note', '기분 기록은 선택 사항이에요.'));
     box.append(btn('text', '끝 기록 취소', actions.unfinish));
   }
+}
+
+// ---- 오늘의 마무리 (기분을 고른 뒤) ----
+const BEFORE = { out: '나가기 싫었어요', burden: '부담스러웠어요', tired: '피곤했어요', later: '미루고 싶었어요' };
+function moodMessage(r) {
+  // 기분이 나빴다고 해도 좋은 쪽으로 유도하지 않는다
+  if (r.mood >= 4 && r.reluctant) return '가기 싫었는데 다녀오니 좋았네요. 다음에 가기 싫을 때 오늘을 보여 드릴게요.';
+  if (r.mood >= 4) return '기분 좋았던 날로 남겨 둘게요.';
+  if (r.mood === 3) return '보통인 날도 똑같이 한 칸이에요.';
+  return '힘든 날이었네요. 그래도 오늘 한 칸은 그대로 쌓였어요.';
+}
+function wrapCard(r, h) {
+  const card = el('div', 'wrap pop');
+  if (r.reluctant) {
+    const row = el('div', 'ba');
+    const before = el('div', 'ba-item');
+    before.append(el('span', 'ba-label', '출발 전'), el('span', 'ba-val', (h && BEFORE[h.reason]) || '가기 싫었어요'));
+    const after = el('div', 'ba-item');
+    after.append(el('span', 'ba-label', '다녀온 뒤'), el('span', 'ba-val on', MOODS[r.mood - 1]));
+    row.append(before, el('span', 'ba-arrow', '→'), after);
+    card.append(row);
+  }
+  card.append(el('p', 'wrap-msg', moodMessage(r)));
+  const now = new Date();
+  const stats = ['이번 달 ' + monthCount(now.getFullYear(), now.getMonth()) + '번째 출석'];
+  if (r.mood >= 4) stats.push('기분 좋았던 날 ' + recs().filter(([, x]) => x.status === 'attend' && x.mood >= 4).length + '번째');
+  else stats.push('지금까지 ' + attendCount() + '회');
+  card.append(el('p', 'wrap-stat', stats.join(' · ')));
+  return card;
 }
 
 // ---- 가기 싫을 때 도움 ----
