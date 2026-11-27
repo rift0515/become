@@ -123,6 +123,18 @@ main{flex:1;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 8px) 24px 20
 .cb-bar{height:100%;border-radius:6px;background:var(--rest)}
 .cb-row.now .cb-bar{background:var(--primary)}
 .cb-row.now span{color:var(--text);font-weight:600}
+/* 쌓인 칸 */
+.cells-rule{margin:-4px 0 12px}
+button.cell{border:0;padding:0;cursor:pointer;position:relative}
+/* 가기 싫었는데 간 날: 앱 아이콘처럼 번지는 초록 + 가끔 스치는 빛 */
+.cell.tough,.strip i.tough,.tough-key{background:linear-gradient(135deg,#C2FAD6 0%,#5BE6A2 45%,#0BBE70 100%)!important;position:relative;overflow:hidden}
+.cell.tough::after,.strip i.tough::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.8) 50%,transparent 70%);transform:translateX(-130%);animation:shine 7s ease-in-out infinite;animation-delay:var(--d,0s)}
+@keyframes shine{0%,78%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
+.cell.sel{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--text)}
+.cell-detail{margin-top:14px;background:var(--surface);border-radius:14px;padding:14px 16px;min-height:52px}
+.cd-hint{margin:0;font-size:14px;color:var(--sub)}
+.cd-title{margin:0 0 6px;font-size:16px;font-weight:700}
+.cd-line{margin:0;font-size:15px;color:var(--text);line-height:1.6}
 .textrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}
 .mood-q{margin:22px 0 0!important;color:var(--text)!important;font-weight:600}
 .moods{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px}
@@ -250,8 +262,14 @@ textarea{width:100%;height:120px;border-radius:14px;border:0;background:var(--su
 
     <div class="sec">
       <h3>쌓인 칸</h3>
-      <div class="cells" id="cells" role="img"></div>
-      <p class="hint">기록은 줄어들지 않아요. 쉬어도 지금까지의 칸은 그대로예요.</p>
+      <p class="hint cells-rule">한 칸 = 헬스장에 도착한 하루예요. 간 순서대로 왼쪽부터 쌓이고, 쉬어도 줄지 않아요.</p>
+      <div class="cells" id="cells"></div>
+      <div class="legend">
+        <span><i style="background:var(--primary)"></i>간 날</span>
+        <span><i class="tough-key"></i>가기 싫었는데 간 날</span>
+        <span><i style="background:var(--empty)"></i>다음에 채울 칸</span>
+      </div>
+      <div class="cell-detail" id="cell-detail"></div>
     </div>
 
     <div class="sec">
@@ -681,9 +699,15 @@ function cellStrip(n, animate) {
   strip.setAttribute('role', 'img');
   strip.setAttribute('aria-label', n + '번째 출석 칸이 채워졌어요');
   const filled = ((n - 1) % 10) + 1;
+  const att = attendDays();
+  const start = att.length - filled;
   for (let i = 0; i < 10; i++) {
     const c = document.createElement('i');
-    if (i < filled) c.className = 'on' + (animate && i === filled - 1 ? ' new' : '');
+    if (i < filled) {
+      const r = state.records[att[start + i]] || {};
+      c.className = 'on' + (r.reluctant ? ' tough' : '') + (animate && i === filled - 1 ? ' new' : '');
+      if (r.reluctant) c.style.setProperty('--d', ((i * 0.9) % 7).toFixed(1) + 's');
+    }
     strip.append(c);
   }
   return strip;
@@ -906,15 +930,7 @@ function renderRecord(animateNew) {
   const goodDays = recs().filter(([, r]) => r.status === 'attend' && r.mood >= 4).length;
   if (goodDays) chips.append(chip('다녀온 뒤 기분 좋았던 날', goodDays + '회'));
 
-  const total = Math.max(30, Math.ceil((n + 1) / 10) * 10);
-  const todayAttend = (state.records[todayKey()] || {}).status === 'attend';
-  let html = '';
-  for (let i = 0; i < total; i++) {
-    const cls = i < n ? 'cell on' + (animateNew && todayAttend && i === n - 1 ? ' new' : '') : 'cell';
-    html += '<div class="' + cls + '"></div>';
-  }
-  $('cells').innerHTML = html;
-  $('cells').setAttribute('aria-label', '출석 ' + n + '칸');
+  renderCells(animateNew);
 
   renderComeback();
 
@@ -939,6 +955,60 @@ function renderRecord(animateNew) {
     ? '마지막 백업 후 2주가 지났어요.'
     : '아직 백업한 적이 없어요.';
 }
+// ---- 쌓인 칸: 한 칸 = 간 하루. 누르면 그날 기록을 보여줌 ----
+let selectedCell = null;
+function dayLabel(k) {
+  return new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10))
+    .toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+}
+function renderCells(animateNew) {
+  const att = attendDays();
+  const n = att.length;
+  const tk = todayKey();
+  if (selectedCell && !att.includes(selectedCell)) selectedCell = null;
+  const box = $('cells');
+  box.innerHTML = '';
+  // 지금 줄의 남은 칸까지만 빈칸으로 (꽉 찼다면 다음 줄 하나)
+  const total = Math.max(10, Math.ceil((n + 1) / 10) * 10);
+  for (let i = 0; i < total; i++) {
+    if (i >= n) { box.append(el('span', 'cell')); continue; }
+    const k = att[i];
+    const r = state.records[k];
+    const b = document.createElement('button');
+    b.className = 'cell on' + (r.reluctant ? ' tough' : '') + (k === selectedCell ? ' sel' : '') +
+      (animateNew && k === tk && i === n - 1 ? ' new' : '');
+    if (r.reluctant) b.style.setProperty('--d', ((i * 0.9) % 7).toFixed(1) + 's');
+    b.setAttribute('aria-label', (i + 1) + '번째 칸, ' + dayLabel(k) + (r.reluctant ? ', 가기 싫었는데 간 날' : ''));
+    b.addEventListener('click', () => {
+      if (b.dataset.cancel) return;
+      selectedCell = selectedCell === k ? null : k;
+      renderCells(false);
+    });
+    box.append(b);
+  }
+  renderCellDetail(att);
+}
+function renderCellDetail(att) {
+  const box = $('cell-detail');
+  box.innerHTML = '';
+  if (!att.length) { box.append(el('p', 'cd-hint', '헬스장에 도착하면 첫 칸이 채워져요.')); return; }
+  if (!selectedCell) { box.append(el('p', 'cd-hint', '칸을 누르면 그날 기록을 볼 수 있어요.')); return; }
+  const k = selectedCell;
+  const r = state.records[k];
+  const h = state.help[k];
+  box.append(el('p', 'cd-title', (att.indexOf(k) + 1) + '번째 칸 · ' + dayLabel(k)));
+  const facts = [];
+  if (r.arrivedAt > 1e11) {
+    facts.push(timeOf(r.arrivedAt) + ' 도착' + (r.finishedAt > r.arrivedAt ? ' · 운동 ' + duration(r.arrivedAt, r.finishedAt) : ''));
+  }
+  if (r.reluctant) facts.push('가기 싫었는데 간 날' + (h && BEFORE[h.reason] ? ' (' + BEFORE[h.reason].replace(/어요$/, '음') + ')' : ''));
+  const cb = comebacks().find((x) => x.key === k);
+  if (cb) facts.push(cb.days + '일 만에 다시 시작한 날');
+  if (r.mood) facts.push('다녀온 뒤 기분: ' + MOODS[r.mood - 1]);
+  if (!facts.length) facts.push('도착한 날');
+  facts.forEach((t) => box.append(el('p', 'cd-line', t)));
+}
+
 function renderComeback() {
   const box = $('comeback');
   box.innerHTML = '';
@@ -1093,7 +1163,7 @@ document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.prev
 
 // 버튼을 누른 채 손가락을 움직였다가 떼면 누르기를 취소
 {
-  const SEL = '.btn, .mood, .tab, .iconbtn, #toast-undo, .cal-nav button';
+  const SEL = '.btn, .mood, .tab, .iconbtn, #toast-undo, .cal-nav button, button.cell';
   let target = null, sx = 0, sy = 0;
   document.addEventListener('touchstart', (e) => {
     const t = e.target.closest ? e.target.closest(SEL) : null;
