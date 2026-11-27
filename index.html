@@ -526,7 +526,7 @@ function btn(cls, text, fn) {
   const b = document.createElement('button');
   b.className = 'btn ' + cls;
   b.textContent = text;
-  b.addEventListener('click', fn);
+  b.addEventListener('click', (e) => { if (!b.dataset.cancel) fn(e); });
   return b;
 }
 // 진동이 필요한 버튼: 버튼 모양의 label 안에 실제 스위치를 깔아 둠
@@ -542,6 +542,7 @@ function hapBtn(cls, text, fn) {
   input.setAttribute('aria-label', text);
   let fired = false;
   input.addEventListener('change', () => {
+    if (l.dataset.cancel) { input.checked = !input.checked; return; }
     if (fired) return;
     fired = true;
     haptic();
@@ -986,6 +987,39 @@ $('wipe').addEventListener('click', () => {
 ['gesturestart', 'gesturechange', 'gestureend'].forEach((t) =>
   document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
 document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+
+// 버튼을 누른 채 손가락을 움직였다가 떼면 누르기를 취소
+{
+  const SEL = '.btn, .mood, .tab, .iconbtn, #toast-undo, .cal-nav button';
+  let target = null, sx = 0, sy = 0;
+  document.addEventListener('touchstart', (e) => {
+    const t = e.target.closest ? e.target.closest(SEL) : null;
+    target = t && e.touches.length === 1 ? t : null;
+    if (!target) return;
+    delete target.dataset.cancel;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!target || target.dataset.cancel) return;
+    const p = e.touches[0];
+    if (Math.hypot(p.clientX - sx, p.clientY - sy) > 10) target.dataset.cancel = '1';
+  }, { passive: true, capture: true });
+  document.addEventListener('touchend', (e) => {
+    if (!target) return;
+    const t = target;
+    target = null;
+    if (t.dataset.cancel) {
+      e.preventDefault(); // 클릭이 만들어지지 않게
+      setTimeout(() => { delete t.dataset.cancel; }, 400);
+    }
+  }, { passive: false, capture: true });
+  // 그래도 클릭이 들어오면 여기서 막음 (스위치가 켜지는 것까지 막힘)
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest ? e.target.closest(SEL) : null;
+    if (t && t.dataset.cancel) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+}
 
 // 날짜가 바뀌었을 수 있으니 앱으로 돌아올 때마다 다시 그림
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
